@@ -1,11 +1,9 @@
-use loop_unwrap::unwrap_continue;
-use loop_unwrap::ToOption;
+use loop_unwrap::{unwrap_continue, ToOption};
 use regex::Regex;
 use std::collections::LinkedList;
 use std::env;
 use std::error::Error;
 use std::io::{stdin, BufRead, BufReader, IsTerminal};
-use std::process::exit;
 use std::result::Result;
 
 fn line_matches(line: &str, regex: &Regex) -> bool {
@@ -18,7 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut args: LinkedList<String> = env::args().collect();
     if args.len() < 2 {
         println!("pattern required");
-        exit(1);
+        return Ok(());
     }
 
     args.pop_front();
