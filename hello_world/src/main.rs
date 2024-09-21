@@ -1,35 +1,75 @@
-use rand::Rng;
-use std::cmp::Ordering;
-use std::io;
+use loop_unwrap::unwrap_continue;
+use loop_unwrap::ToOption;
+use regex::Regex;
+use std::collections::LinkedList;
+use std::env;
+use std::error::Error;
+use std::io::{stdin, BufRead, BufReader, IsTerminal};
+use std::process::exit;
+use std::result::Result;
 
-fn main() {
-    println!("Guess the number!");
+fn line_matches(line: &str, pattern: &str) -> bool {
+    let regex = Regex::new(&pattern).unwrap();
+    let matches: Vec<_> = regex.find_iter(&line).collect();
 
-    let secret_number = rand::thread_rng().gen_range(1..=100);
+    !matches.is_empty()
+}
 
-    loop {
-        println!("Please input your guess.");
+fn main() -> Result<(), Box<dyn Error>> {
+    let mut args: LinkedList<String> = env::args().collect();
+    if args.len() < 2 {
+        println!("pattern required");
+        exit(1);
+    }
 
-        let mut guess = String::new();
+    args.pop_front();
+    let pattern = args.pop_front().unwrap();
 
-        io::stdin()
-            .read_line(&mut guess)
-            .expect("Failed to read line");
+    if args.len() > 0 {
+        while args.len() > 0 {
+            let path = args.pop_front().unwrap();
+            println!("searching in {path:?}");
 
-        let guess: u32 = match guess.trim().parse() {
-            Ok(num) => num,
-            Err(_) => continue,
-        };
+            let file = unwrap_continue!(std::fs::File::open(&path));
 
-        println!("You guessed: {guess}");
+            let mut line_number = 1;
+            for line in BufReader::new(&file).lines() {
+                let line = unwrap_continue!(line);
+                if line_matches(&line, &pattern) {
+                    println!("{line_number:?} {line:?}");
+                }
+                line_number += 1;
+            }
 
-        match guess.cmp(&secret_number) {
-            Ordering::Less => println!("Too small!"),
-            Ordering::Greater => println!("Too big!"),
-            Ordering::Equal => {
-                println!("You win!");
-                break;
+            println!("finished searching in {path:?}");
+        }
+    } else {
+        let stdin = stdin();
+        if stdin.is_terminal() {
+            let mut line = String::new();
+            stdin.read_line(&mut line)?;
+
+            if line_matches(&line, &pattern) {
+                println!("{line:?}");
+            }
+        } else {
+            let mut line_number = 1;
+            loop {
+                let mut line = String::new();
+                if stdin.read_line(&mut line)? == 0 {
+                    break;
+                }
+
+                if line.ends_with('\n') {
+                    line.pop();
+                }
+                if line_matches(&line, &pattern) {
+                    println!("{line_number:?} {line:?}");
+                }
+                line_number += 1;
             }
         }
     }
+
+    Ok(())
 }
